@@ -58,7 +58,7 @@ parameter_input = dbc.FormGroup(
 form = dbc.Form([parameter_input])
 sidebar = html.Div(
     [
-        html.H4("Parameters", className="display-4"),
+        html.H4("Parameters", className="display-6"),
         html.Hr(),
         html.P(
             "Enter required parameters", className="lead"
@@ -104,7 +104,7 @@ listgroup = html.Div(
 )
 content = html.Div(
     [
-        html.H4("A/B Testing Tools", className="display-2"),
+        html.H6("A/B Testing Tools", className="display-4"),
         html.Hr(),
         html.Div([
             dbc.Row(
@@ -145,10 +145,7 @@ app.index_string = '''
     </body>
 </html>
 '''
-# app.layout = dbc.Container(
-#     dbc.Alert("Hello Bootstrap!", color="success"),
-#     className="p-5",
-# )
+
 app.layout = html.Div([dcc.Location(id="url"), sidebar, content])
 
 
@@ -220,6 +217,16 @@ def calc(n, total_a=1500, conversions_a=10, total_b=1500, conversions_b=20):
 
     crA = conversions_a / total_a
     crB = conversions_b / total_b
+    uplift = (crB - crA) / crA
+    # crA_temp = crA
+    # crB_temp = crB
+    # total_a_temp = total_a
+    # total_b_temp = total_b
+    # if crA > crB:
+    #     crA = crB_temp
+    #     crB = crA_temp
+    #     total_a = total_b_temp
+    #     total_b = total_a_temp
     var_A = crA*(1 - crA)
     var_B = crB*(1 - crB)
     # sigA = np.sqrt(var_A)
@@ -228,12 +235,17 @@ def calc(n, total_a=1500, conversions_a=10, total_b=1500, conversions_b=20):
     Z_alpha = scs.norm(0, 1).ppf(1 - 0.05/2)
 
     pval = scs.norm.sf(Z)
+    if pval > 0.5:
+        pval = 1 - pval
     StE_A = np.sqrt(crA*(1 - crA) / total_a)
     StE_B = np.sqrt(crB*(1 - crB) / total_b)
+    
     lower = crA - Z_alpha * StE_A
     upper = crA + Z_alpha * StE_A
+    
     lower_a = scs.norm.cdf(lower, crB, StE_B)
     upper_a = 1 - scs.norm.cdf(upper, crB, StE_B)
+    
     power = round(100*(lower_a+upper_a), 2)
     x = np.linspace(0, crA + crB*1.5, 1000)
     normA = scs.norm.pdf(x, loc=crA, scale=StE_A)
@@ -241,6 +253,8 @@ def calc(n, total_a=1500, conversions_a=10, total_b=1500, conversions_b=20):
     fig4 = go.Figure()
     fig4.add_trace(go.Scatter(x=x, y=normA, mode='lines', marker_color="#25211f", name='Dist A'))
     fig4.add_trace(go.Scatter(x=x, y=normB, mode='lines', marker_color="#b51e6d", name='Dist B'))
+    fig4.add_vline(x=upper, line_width=3, line_dash="dash", line_color="green", annotation_text="95%")
+    fig4.add_vline(x=lower, line_width=3, line_dash="dash", line_color="green", annotation_text="95%")
     fig4.update_layout(title_text="Expected Distributions")
     listg = dbc.ListGroup(
         [
@@ -248,6 +262,9 @@ def calc(n, total_a=1500, conversions_a=10, total_b=1500, conversions_b=20):
             dbc.ListGroupItem(f"Power: {power}%"),
             dbc.ListGroupItem(f"Conversion Rate A: {100*crA:0.2f}%"),
             dbc.ListGroupItem(f"Conversion Rate B: {100*crB:0.2f}%"),
+            dbc.ListGroupItem(f"Z: {Z:0.2f}"),
+            dbc.ListGroupItem(f"lower_a: {lower_a:0.2f}"),
+            dbc.ListGroupItem(f"upper_a: {upper_a:0.2f}"),
         ]
     )
     return fig, fig2, fig3, fig4, listg
